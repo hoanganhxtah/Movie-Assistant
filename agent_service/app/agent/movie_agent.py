@@ -1,0 +1,64 @@
+"""LangChain movie agent."""
+
+from langchain.agents import create_agent
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
+
+from agent_service.app.agent.prompts.movie_agent import MOVIE_AGENT_PROMPT
+from agent_service.app.agent.tools import ToolRegistry
+from agent_service.app.schemas import (
+    AgentContext,
+    AgentResult,
+    AgentState,
+    AgentToolResult,
+)
+
+
+class MovieAgent:
+    """Wrap the LangChain graph and convert its output to API schemas."""
+
+    def __init__(self, model: BaseChatModel, tools: ToolRegistry):
+        self.tools = tools
+        # create_agent lets the LLM choose a tool or answer casual chat directly.
+        self.graph = create_agent(
+            model=model,
+            tools=tools.build_tools(),
+            system_prompt=MOVIE_AGENT_PROMPT,
+            context_schema=AgentContext,
+            checkpointer=InMemorySaver(),
+        )
+
+    def run(self, message: str, state: AgentState, include_evidence: bool) -> AgentResult:
+        if not self.tools.repository.has_user(state.user_id):
+            raise ValueError(f"Unknown userId: {state.user_id}")
+
+        # thread_id is the key used by LangGraph to restore conversation history.
+        result = self.graph.invoke(
+            {"messages": [{"role": "user", "content": message}]},
+            config={"configurable": {"thread_id": state.thread_id}},
+            context=AgentContext(user_id=state.user_id),
+        )
+
+        intent = "conversation"
+        recommendations = ()
+        evidence = ()
+
+        # Read the latest tool artifact from this turn. No artifact means normal chat.
+        for item in reversed(result["messages"]):
+            if isinstance(item, HumanMessage):
+                break
+            if isinstance(item, ToolMessage) and item.artifact:
+                tool_result = AgentToolResult.model_validate(item.artifact)
+                intent = tool_result.intent
+                recommendations = tool_result.recommendations
+                evidence = tool_result.evidence
+                break
+
+        return AgentResult(
+            answer=str(result["messages"][-1].text),
+            intent=intent,
+            recommendations=recommendations,
+            evidence=evidence if include_evidence else (),
+            state=state,
+        )
