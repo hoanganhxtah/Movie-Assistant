@@ -3,10 +3,10 @@
 from langchain_core.tools import BaseTool, tool
 
 from agent_service.app.schemas import AgentToolResult, SearchFilter
-from agent_service.app.services.search import MovieRetriever
+from agent_service.app.services.search import TfidfMovieRetriever
 
 
-def build_search_tool(retriever: MovieRetriever) -> BaseTool:
+def build_search_tool(retriever: TfidfMovieRetriever) -> BaseTool:
     @tool("search_movies", response_format="content_and_artifact")
     def search_movies(
         query: str,

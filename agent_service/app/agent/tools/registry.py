@@ -10,7 +10,7 @@ from agent_service.app.services.recommendation import (
     RecommendationService,
     UserUserCollaborativeFilter,
 )
-from agent_service.app.services.search import MovieRetriever
+from agent_service.app.services.search import TfidfMovieRetriever
 
 from .peer_opinion_tool import build_peer_opinion_tool
 from .profile_tool import build_blind_spot_tool, build_profile_tool
@@ -21,7 +21,7 @@ from .search_tool import build_search_tool
 @dataclass(frozen=True)
 class ToolRegistry:
     repository: MovieRepository
-    retriever: MovieRetriever
+    retriever: TfidfMovieRetriever
     recommendation: RecommendationService
     collaborative: UserUserCollaborativeFilter
     profile: ProfileService

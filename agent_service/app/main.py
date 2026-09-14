@@ -22,14 +22,14 @@ from agent_service.app.services.recommendation import (
     RecommendationService,
     UserUserCollaborativeFilter,
 )
-from agent_service.app.services.search.index_service import build_search_index
+from agent_service.app.services.search import TfidfMovieRetriever
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Build data indexes and services once, then reuse them for every request.
     repository = MovieRepository(data_settings.DIR)
-    retriever = build_search_index(repository)
+    retriever = TfidfMovieRetriever(repository)
     collaborative = UserUserCollaborativeFilter(repository)
     recommendation = RecommendationService(
         repository, retriever, collaborative
