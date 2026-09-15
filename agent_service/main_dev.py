@@ -21,7 +21,10 @@ from agent_service.app.config import app_settings, server_settings
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
     logging.getLogger(__name__).info(
         "Starting %s v%s on %s:%s",
         app_settings.NAME,

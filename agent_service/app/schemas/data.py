@@ -1,11 +1,10 @@
 """Normalized source-data models."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class Movie(BaseModel):
     """Catalog movie enriched with tags and rating statistics."""
-    model_config = ConfigDict(frozen=True)
 
     movie_id: int
     title: str
@@ -20,7 +19,6 @@ class Movie(BaseModel):
 
 class Rating(BaseModel):
     """One MovieLens user rating."""
-    model_config = ConfigDict(frozen=True)
 
     user_id: int
     movie_id: int
@@ -30,7 +28,6 @@ class Rating(BaseModel):
 
 class Tag(BaseModel):
     """One free-text MovieLens tag."""
-    model_config = ConfigDict(frozen=True)
 
     user_id: int
     movie_id: int

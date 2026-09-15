@@ -51,6 +51,9 @@ class RecommendationService:
         for row in self.repository.movies.itertuples(index=False):
             genres = {genre.lower() for genre in row.genres_list}
             accepted = int(row.movieId) not in seen
+            accepted &= all(
+                genre.lower() in genres for genre in filters.include_genres
+            )
             accepted &= not any(
                 genre.lower() in genres for genre in filters.exclude_genres
             )
@@ -122,12 +125,18 @@ class RecommendationService:
 
             predicted_rating = scores["collaborative_raw"][row_index]
             search_hit = search_hits.get(movie.movie_id)
+            # The agent summarizes this excerpt when explaining the recommendation.
+            plot_summary = movie.plot.replace("{{Plot}}", "").replace("{{plot}}", "")
+            plot_summary = plot_summary.strip()
+            if len(plot_summary) > 500:
+                plot_summary = plot_summary[:500].strip() + "..."
             recommendations.append(
                 MovieRecommendation(
                     movie_id=movie.movie_id,
                     title=movie.title,
                     year=movie.year,
                     genres=movie.genres,
+                    plot_summary=plot_summary,
                     scores=ScoreBreakdown(
                         query=float(scores["query"][row_index]),
                         profile=float(scores["profile"][row_index]),

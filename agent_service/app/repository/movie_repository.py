@@ -29,25 +29,18 @@ def normalize_title(value: str) -> str:
 
 
 class MovieRepository:
-    def __init__(self, data_dir: str | Path):
-        data_dir = Path(data_dir)
-        self.movies = pd.read_csv(data_dir / "movies_with_plots.csv")
-        self.ratings = pd.read_csv(data_dir / "ratings.csv")
-        self.tags = pd.read_csv(data_dir / "tags.csv")
+    def __init__(
+        self,
+        movies: pd.DataFrame,
+        ratings: pd.DataFrame,
+        tags: pd.DataFrame,
+    ):
+        """Create a repository from movie, rating and tag data."""
+        self.movies = movies.copy()
+        self.ratings = ratings.copy()
+        self.tags = tags.copy()
         self._validate()
         self._prepare()
-
-    @classmethod
-    def from_frames(
-        cls, movies: pd.DataFrame, ratings: pd.DataFrame, tags: pd.DataFrame
-    ) -> "MovieRepository":
-        instance = cls.__new__(cls)
-        instance.movies = movies.copy()
-        instance.ratings = ratings.copy()
-        instance.tags = tags.copy()
-        instance._validate()
-        instance._prepare()
-        return instance
 
     def _validate(self) -> None:
         # Fail at startup instead of returning unreliable recommendations later.
@@ -204,3 +197,13 @@ class MovieRepository:
                 for row in liked.itertuples(index=False)
             ),
         )
+
+
+def load_movie_repository(data_dir: str | Path) -> MovieRepository:
+    """Read MovieLens CSV files and create a repository."""
+    data_dir = Path(data_dir)
+    return MovieRepository(
+        movies=pd.read_csv(data_dir / "movies_with_plots.csv"),
+        ratings=pd.read_csv(data_dir / "ratings.csv"),
+        tags=pd.read_csv(data_dir / "tags.csv"),
+    )

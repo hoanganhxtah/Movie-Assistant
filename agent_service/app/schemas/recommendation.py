@@ -1,11 +1,10 @@
 """Structured recommendation, profile and evidence contracts."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class ScoreBreakdown(BaseModel):
     """Normalized signals used to rank one movie."""
-    model_config = ConfigDict(frozen=True)
 
     query: float = 0.0
     profile: float = 0.0
@@ -16,7 +15,6 @@ class ScoreBreakdown(BaseModel):
 
 class SimilarMovie(BaseModel):
     """A liked movie used to explain a recommendation."""
-    model_config = ConfigDict(frozen=True)
 
     movie_id: int
     title: str
@@ -26,7 +24,6 @@ class SimilarMovie(BaseModel):
 
 class RecommendationEvidence(BaseModel):
     """Grounding data attached to one recommendation."""
-    model_config = ConfigDict(frozen=True)
 
     matched_terms: tuple[str, ...] = ()
     matched_genres: tuple[str, ...] = ()
@@ -38,19 +35,18 @@ class RecommendationEvidence(BaseModel):
 
 class MovieRecommendation(BaseModel):
     """A ranked movie and the evidence behind it."""
-    model_config = ConfigDict(frozen=True)
 
     movie_id: int
     title: str
     year: int | None
     genres: tuple[str, ...]
+    plot_summary: str
     scores: ScoreBreakdown
     evidence: RecommendationEvidence
 
 
 class UserProfile(BaseModel):
     """Compact summary of a user's rating history."""
-    model_config = ConfigDict(frozen=True)
 
     user_id: int
     rating_count: int
@@ -61,7 +57,6 @@ class UserProfile(BaseModel):
 
 class PeerOpinion(BaseModel):
     """Ratings from users with similar taste."""
-    model_config = ConfigDict(frozen=True)
 
     movie_id: int
     title: str
@@ -73,7 +68,6 @@ class PeerOpinion(BaseModel):
 
 class BlindSpot(BaseModel):
     """An underexplored genre with suggested starting points."""
-    model_config = ConfigDict(frozen=True)
 
     genre: str
     user_rating_count: int

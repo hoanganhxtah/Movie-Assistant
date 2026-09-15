@@ -1,12 +1,12 @@
 """Search input and output contracts."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class SearchFilter(BaseModel):
     """Hard constraints applied before returning search results."""
-    model_config = ConfigDict(frozen=True)
 
+    include_genres: tuple[str, ...] = ()
     exclude_genres: tuple[str, ...] = ()
     min_year: int | None = None
     max_year: int | None = None
@@ -14,11 +14,11 @@ class SearchFilter(BaseModel):
 
 class SearchHit(BaseModel):
     """One catalog match with its relevance explanation."""
-    model_config = ConfigDict(frozen=True)
 
     movie_id: int
     title: str
     year: int | None
     genres: tuple[str, ...]
+    plot_summary: str
     score: float = Field(ge=0.0)
     matched_terms: tuple[str, ...] = ()

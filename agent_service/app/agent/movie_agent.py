@@ -1,5 +1,7 @@
 """LangChain movie agent."""
 
+import logging
+
 from langchain.agents import create_agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, ToolMessage
@@ -13,6 +15,9 @@ from agent_service.app.schemas import (
     AgentState,
     AgentToolResult,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class MovieAgent:
@@ -34,6 +39,11 @@ class MovieAgent:
             raise ValueError(f"Unknown userId: {state.user_id}")
 
         # thread_id is the key used by LangGraph to restore conversation history.
+        logger.info(
+            "Invoking agent graph | thread_id=%s | user_id=%s",
+            state.thread_id,
+            state.user_id,
+        )
         result = self.graph.invoke(
             {"messages": [{"role": "user", "content": message}]},
             config={"configurable": {"thread_id": state.thread_id}},
@@ -43,6 +53,7 @@ class MovieAgent:
         intent = "conversation"
         recommendations = ()
         evidence = ()
+        selected_tool = "none"
 
         # Read the latest tool artifact from this turn. No artifact means normal chat.
         for item in reversed(result["messages"]):
@@ -53,7 +64,18 @@ class MovieAgent:
                 intent = tool_result.intent
                 recommendations = tool_result.recommendations
                 evidence = tool_result.evidence
+                selected_tool = item.name or "unknown"
                 break
+
+        logger.info(
+            "Agent graph completed | thread_id=%s | user_id=%s | tool=%s | "
+            "intent=%s | messages=%s",
+            state.thread_id,
+            state.user_id,
+            selected_tool,
+            intent,
+            len(result["messages"]),
+        )
 
         return AgentResult(
             answer=str(result["messages"][-1].text),

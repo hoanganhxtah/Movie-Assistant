@@ -16,7 +16,7 @@ from agent_service.app.config import (
     server_settings,
 )
 from agent_service.app.llm import get_chat_model
-from agent_service.app.repository import MovieRepository
+from agent_service.app.repository import load_movie_repository
 from agent_service.app.services.recommendation import (
     ProfileService,
     RecommendationService,
@@ -28,7 +28,7 @@ from agent_service.app.services.search import TfidfMovieRetriever
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Build data indexes and services once, then reuse them for every request.
-    repository = MovieRepository(data_settings.DIR)
+    repository = load_movie_repository(data_settings.DIR)
     retriever = TfidfMovieRetriever(repository)
     collaborative = UserUserCollaborativeFilter(repository)
     recommendation = RecommendationService(

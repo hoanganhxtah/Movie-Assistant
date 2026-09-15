@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 
 import numpy as np
 from scipy import sparse
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 
 from agent_service.app.config import search_settings
@@ -16,9 +16,6 @@ from agent_service.app.schemas import SearchFilter, SearchHit
 
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
-IGNORED_TERMS = set(ENGLISH_STOP_WORDS).union(
-    {"movie", "film", "want", "phim", "tôi", "muốn", "một"}
-)
 
 
 def tokenize(text: str) -> list[str]:
@@ -59,7 +56,8 @@ class TfidfMovieRetriever:
         # Cosine-like TF-IDF score is supplemented by exact metadata terms.
         query_vector = self.vectorizer.transform([query])
         scores = np.asarray((self.matrix @ query_vector.T).toarray()).ravel()
-        terms = set(tokenize(query)).difference(IGNORED_TERMS)
+        # The agent passes concise English keywords to the retriever.
+        terms = set(tokenize(query))
         if terms:
             boost = np.asarray(
                 [len(terms.intersection(values)) / len(terms) for values in self.metadata_terms]
@@ -70,6 +68,8 @@ class TfidfMovieRetriever:
     @staticmethod
     def _accepts(row, filters: SearchFilter) -> bool:
         genres = {genre.lower() for genre in row.genres_list}
+        if not all(genre.lower() in genres for genre in filters.include_genres):
+            return False
         if any(genre.lower() in genres for genre in filters.exclude_genres):
             return False
         if filters.min_year is not None and (
@@ -91,7 +91,7 @@ class TfidfMovieRetriever:
         filters = filters or SearchFilter()
         scores = self.query_scores(query)
         order = np.argsort(scores)[::-1]
-        query_terms = set(tokenize(query)).difference(IGNORED_TERMS)
+        query_terms = set(tokenize(query))
         hits: list[SearchHit] = []
         for row_index in order:
             if scores[row_index] <= 0:
@@ -103,12 +103,19 @@ class TfidfMovieRetriever:
             matched = tuple(
                 sorted(query_terms.intersection(set(tokenize(self.documents[row_index]))))[:8]
             )
+            # Give the LLM enough story context without sending the full long plot.
+            plot_summary = str(row["plot"])
+            plot_summary = plot_summary.replace("{{Plot}}", "").replace("{{plot}}", "")
+            plot_summary = plot_summary.strip()
+            if len(plot_summary) > 500:
+                plot_summary = plot_summary[:500].strip() + "..."
             hits.append(
                 SearchHit(
                     movie_id=int(row["movieId"]),
                     title=str(row["title"]),
                     year=year,
                     genres=tuple(row["genres_list"]),
+                    plot_summary=plot_summary,
                     score=float(scores[row_index]),
                     matched_terms=matched,
                 )
