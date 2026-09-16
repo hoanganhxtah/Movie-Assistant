@@ -1,0 +1,26 @@
+.git
+.gitignore
+.dockerignore
+
+# Never send local credentials to the Docker daemon or image build context.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python/editor/test artifacts are not needed in runtime images.
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+
+# Repository-only material.
+docs/
+evaluation/
+scripts/
+tests/
+explore.ipynb

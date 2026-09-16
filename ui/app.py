@@ -7,18 +7,20 @@ import streamlit as st
 
 from components.chat import render_messages
 from components.evidence import render_evidence
+from components.login import render_login
 from components.sidebar import render_sidebar
 from services import AgentAPIError, post_chat
 
 
 def main() -> None:
     st.set_page_config(page_title="Movie Discovery Agent", page_icon="🎬")
+
+    # Gate: show login screen until the user picks a userId.
+    if not render_login():
+        return
+
     st.title("🎬 Movie Discovery Agent")
     st.caption("Recommendations grounded in the local MovieLens dataset.")
-
-    if "messages" not in st.session_state:
-        # Streamlit reruns the file after each action, so chat lives in session state.
-        st.session_state.messages = []
 
     thread_id, user_id, include_evidence = render_sidebar()
     render_messages(st.session_state.messages)

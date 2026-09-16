@@ -105,6 +105,8 @@ ipython_config.py
 #   pdm creates a .pdm-build directory during build
 .pdm-build/
 
+.vscode/
+
 # PEP 582; used by e.g. github.com/frenzy/venvs
 __pypackages__/
 
@@ -118,11 +120,11 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+/env/
+/venv/
+/ENV/
+/env.bak/
+/venv.bak/
 
 # Spyder project settings
 .spyderproject

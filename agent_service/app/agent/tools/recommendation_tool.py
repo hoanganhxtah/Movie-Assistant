@@ -87,12 +87,17 @@ def build_recommendation_tool(
         # Send only facts needed to write the answer; the API artifact stays complete.
         movies_for_llm = []
         for item in recommendations:
+            movie = repository.get_movie(item.movie_id)
             movies_for_llm.append(
                 {
                     "title": item.title,
                     "year": item.year,
                     "genres": item.genres,
                     "plot_summary": item.plot_summary,
+                    "community_rating": round(movie.rating_mean, 2)
+                    if movie.rating_mean is not None
+                    else None,
+                    "vote_count": movie.rating_count,
                     "matched_terms": item.evidence.matched_terms,
                     "matched_genres": item.evidence.matched_genres,
                     "similar_liked_movies": [
