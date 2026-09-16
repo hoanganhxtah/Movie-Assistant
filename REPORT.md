@@ -1,97 +1,133 @@
-# Báo cáo: Movie Discovery Agent
+# Report: Movie Discovery Agent
 
-## Phân Tích Vấn Đề
+## Problem Analysis
 
-Người dùng đã có lịch sử MovieLens và muốn khám phá phim bằng ngôn ngữ tự nhiên.
-Một đề xuất tốt phải đồng thời: hợp ý định hiện tại, phản ánh sở thích dài hạn,
-không vi phạm ràng buộc, chưa được người dùng chấm, và có lý do truy ngược được về
-dữ liệu. Vì vậy đây không chỉ là bài toán search.
+Users have an existing MovieLens rating history and want to discover movies through
+natural-language conversations. A useful recommendation must match the current
+intent, reflect long-term preferences, satisfy explicit constraints, exclude movies
+the user has already rated, and provide reasons traceable to the data. This makes the
+task more than a simple search problem.
 
-Ba khó khăn chính là: 51% phim có dưới 5 rating; tag rất thưa; plot dài nhưng truy
-vấn ngắn. Ngoài ra hệ thống phải kết hợp tín hiệu content và collaborative, nhớ đề
-xuất trước cho câu hỏi follow-up, và tránh để LLM bịa số liệu.
+The three main challenges are that 51% of the movies have fewer than five ratings,
+tags are sparse, and plots are long while user queries are short. The system must
+also combine content and collaborative signals, remember previous recommendations
+for follow-up questions, and prevent the LLM from inventing facts or statistics.
 
-## Phương Pháp Tiếp Cận
+## Approach
 
-Hệ thống gồm Streamlit UI độc lập và FastAPI backend. Lõi `MovieAgent` được xây dựng
-` hỗ trợ tool calling với năm công cụ nghiệp vụ:
-`recommend_movies`, `search_movies`, `get_user_profile`, `get_peer_opinion`, `find_blind_spots`.
-LLM tự động phân tích ngữ cảnh để quyết định gọi tool phù hợp hoặc trả lời trực tiếp
-(chào hỏi/small talk) mà không tạo kết quả rác. Lịch sử hội thoại được duy trì bằng
-`InMemorySaver` checkpointer theo `thread_id` để phục vụ các câu hỏi follow-up.
+The system consists of an independent Streamlit UI and a FastAPI backend. The core
+`MovieAgent` is built with `langchain.agents.create_agent` and supports tool calling
+through five domain tools: `recommend_movies`, `search_movies`, `get_user_profile`,
+`get_peer_opinion`, and `find_blind_spots`. The LLM interprets the conversation and
+selects an appropriate tool, or answers greetings and small talk directly without
+producing irrelevant recommendation results. Conversation history is maintained by
+an `InMemorySaver` checkpointer keyed by `thread_id` to support follow-up questions.
 
-Pipeline recommendation kết hợp:
+The recommendation pipeline combines:
 
-- TF-IDF word unigram/bigram trên title, genre, tag và plot, có metadata boost.
-- Content profile từ các phim người dùng đã chấm, mean-centered theo user.
-- User-user collaborative filtering, cosine similarity, minimum overlap và
-  shrinkage để giảm độ tin cậy của hàng xóm ít dữ liệu.
-- Bayesian movie quality để các phim ít rating không chiếm top chỉ vì mean cao.
-- Hard filters cho phim đã xem, genre loại trừ và khoảng năm.
+- TF-IDF word unigrams and bigrams over titles, genres, tags, and plots, with a
+  metadata boost.
+- A mean-centered content profile built from movies rated by the user.
+- User-user collaborative filtering with cosine similarity, minimum overlap, and
+  shrinkage to reduce confidence in neighbors with limited shared data.
+- Bayesian movie quality so movies with very few ratings do not dominate the ranking
+  only because of a high average score.
+- Hard filters for previously rated movies, excluded genres, and year ranges.
 
-Các object nặng được tạo một lần trong FastAPI lifespan. Với 5.135 phim tĩnh, index
-in-memory đơn giản hơn và đủ nhanh; chưa cần một RAG microservice hay vector DB riêng.
+Heavy objects are initialized once during the FastAPI lifespan. With a static corpus
+of 5,135 movies, an in-memory index is simpler and sufficiently fast; a separate RAG
+microservice or vector database is not yet necessary.
 
-### Nhật Ký Quyết Định
+### Decision Log
 
-
-| Quyết định                     | Phương án thay thế đã xem xét           | Tại sao tôi chọn phương án này                                                       |
-| ----------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Một LangChain tool-calling agent | Supervisor/multi-agent graph                   | Một model đủ chọn năm tool; cấu trúc ngắn, ít latency và dễ mở rộng provider   |
-| TF-IDF local trong backend        | Tái sử dụng`rag_service` với Qdrant/Chroma | Corpus nhỏ, static; tránh thêm service và vận hành nhưng vẫn tìm tốt keyword/plot |
-| Hybrid content + CF + quality     | Chỉ content, chỉ CF hoặc popularity         | Mỗi tín hiệu bù điểm yếu của tín hiệu khác và cho evidence dễ hiểu            |
-
-## Đánh Giá
-
-Hệ thống được đánh giá bằng 23 automated test và các hội thoại mẫu gần với yêu cầu
-đề bài. Toàn bộ test hiện đều pass. Các tình huống chính gồm:
-
-| Tình huống kiểm tra | Kết quả cần đạt | Kết quả |
+| Decision | Alternative considered | Rationale |
 |---|---|---|
-| Đề xuất phim chung cho một user | Dùng lịch sử rating để đề xuất phim chưa xem | Đạt |
-| Tìm “dark psychological thriller with a twist” | Trả về phim trong catalog có nội dung phù hợp | Đạt |
-| Hỏi tiếp “Why would I like that?” | Giữ được ngữ cảnh của lượt đề xuất trước | Đạt |
-| Hỏi đánh giá từ người có gu tương tự | Dùng rating của các user tương đồng và trả evidence | Đạt |
-| Thích Toy Story nhưng không muốn Animation | Dùng phim tham chiếu nhưng loại đúng genre bị cấm | Đạt |
-| Yêu cầu Action sau năm 2002 | Chỉ trả phim Action từ năm 2003 trở đi | Đạt |
-| Yêu cầu đúng số lượng phim | Không trả nhiều hơn số lượng người dùng yêu cầu | Đạt |
-| Tìm genre người dùng ít khám phá | Trả về blind spots cùng phim gợi ý chưa xem | Đạt |
-| Chào hỏi thông thường | Trả lời trực tiếp, không gọi recommendation tool | Đạt |
-| Kiểm tra grounding | Movie ID và evidence trả về đều thuộc dataset | Đạt |
-| User không tồn tại | API từ chối request thay vì tạo recommendation sai | Đạt |
+| One LangChain tool-calling agent | Supervisor or multi-agent graph | One model is sufficient to select among five tools; the design is compact, has lower latency, and supports multiple providers |
+| Local TF-IDF retrieval in the backend | Reuse `rag_service` with Qdrant or Chroma | The corpus is small and static, so this avoids an additional service while still supporting effective keyword and plot search |
+| Hybrid content, collaborative, and quality ranking | Content-only, collaborative-only, or popularity-only ranking | Each signal compensates for weaknesses in the others and produces understandable evidence |
 
-Ngoài test tự động, các hội thoại mẫu tại `evaluation/sample_conversations.md` được
-dùng để kiểm tra cách trình bày câu trả lời, evidence và khả năng xử lý follow-up.
+## Evaluation
 
-### Phân Tích Thất Bại
+The system is evaluated with 23 automated tests and sample conversations based on
+the assignment requirements. All tests currently pass. The main scenarios are:
 
-1. Với “dark psychological thriller with a twist”, `Zero Dark Thirty` có thể lọt
-   top do chữ *dark* trong title và genre Thriller dù không phải psychological
-   twist. TF-IDF hiểu khớp từ, không hiểu vai trò ngữ nghĩa. Embedding hoặc một
-   reranker nhỏ trên top candidates sẽ khắc phục tốt hơn.
-2. Với “liked Toy Story but tired of animated movies”, `A Kid in King Arthur's Court` khớp bốn genre nhưng CF chỉ 2.91/5. Query relevance đang có thể lấn át
-   tín hiệu dislike. Có thể thêm ngưỡng predicted rating hoặc học weights trên
-   validation set.
-3. “Blind spot” hiện đo under-exposure tương đối so với catalog, chưa phân biệt
-   user cố ý tránh một genre với việc chưa khám phá nó. Cần hỏi lại người dùng hoặc
-   dùng cả rating sentiment trước khi gọi đó là điểm mù.
+| Test scenario | Expected behavior | Result |
+|---|---|---|
+| General recommendation for a user | Use rating history to recommend unseen movies | Pass |
+| Search for “a dark psychological thriller with a twist” | Return relevant movies from the local catalog | Pass |
+| Follow up with “Why would I like that?” | Preserve the context of the previous recommendation | Pass |
+| Ask what users with similar taste think | Use ratings from similar users and return supporting evidence | Pass |
+| Like Toy Story but exclude Animation | Use the reference movie while enforcing the excluded genre | Pass |
+| Request Action movies after 2002 | Return only Action movies released from 2003 onward | Pass |
+| Request a specific number of movies | Do not return more movies than requested | Pass |
+| Find genres the user has explored less | Return blind spots with unseen movie suggestions | Pass |
+| Send a normal greeting | Answer directly without calling the recommendation tool | Pass |
+| Check grounding | Ensure returned movie IDs and evidence belong to the dataset | Pass |
+| Use an unknown user | Reject the API request instead of generating an invalid recommendation | Pass |
 
-## Suy Ngẫm
+### Failure Analysis
 
-Điểm mạnh là toàn bộ số liệu đều đến từ dataset, chạy offline mặc định, cấu trúc
-service rõ và demo được end-to-end. Hard constraints được áp dụng trước ranking nên
-không thể bị LLM bỏ qua. UI chỉ gọi HTTP, do đó backend có thể tái sử dụng bởi client
-khác.
+1. For “a dark psychological thriller with a twist,” `Zero Dark Thirty` may appear
+   near the top because *dark* occurs in the title and the movie has the Thriller
+   genre, even though it is not a psychological twist story. TF-IDF matches terms but
+   does not understand their semantic role. Embeddings or a lightweight reranker over
+   the top candidates would improve this case.
+2. For “I liked Toy Story but I am tired of animated movies,” `A Kid in King Arthur's
+   Court` matches four genres, but its collaborative prediction is only 2.91/5. Query
+   relevance can currently outweigh the negative preference signal. A minimum
+   predicted-rating threshold or weights learned on a validation set could improve
+   this behavior.
+3. A blind spot currently means that a genre is underrepresented in the user's
+   history compared with the catalog. It does not distinguish between a genre the
+   user intentionally avoids and one they have not explored. The system should ask a
+   follow-up question or include rating sentiment before labeling it a blind spot.
 
-Điểm yếu là TF-IDF thuần chưa nắm tốt các sắc thái ngữ nghĩa tinh tế (như trường hợp
-từ khóa trùng lặp nhưng khác ngữ cảnh); evaluation 100 user và một held-out item/user
-có variance cao.
-Nếu có thêm thời gian, tôi sẽ đánh giá nhiều temporal folds, đo constraint success
-và explanation faithfulness, bổ sung semantic reranking, rồi mới cân nhắc tách
-retrieval thành microservice khi corpus hoặc tải vận hành thực sự yêu cầu.
+## Reflection
 
-## Phần Mở
+The main strength is that retrieval, profile construction, collaborative filtering,
+and ranking run locally on the dataset. Structured scores and evidence are not
+invented by the LLM. The end-to-end conversational flow still requires a configured
+LLM provider and its corresponding API key. Hard constraints are enforced by the
+recommendation service after the agent converts them into filters, reducing the risk
+of answers that contradict the retrieved data. The UI communicates only through
+HTTP, so the backend can be reused by other clients.
 
-Thiết kế cố ý đặt LLM sau retrieval/ranking. Vì vậy bật OpenAI/Gemini có thể làm câu
-trả lời tự nhiên hơn nhưng không thay đổi danh sách phim, số rating hay confidence.
-Điều này giữ demo có thể tái tạo mà không cần API key và giảm rủi ro hallucination.
+The main weakness is that pure TF-IDF does not capture subtle semantic differences,
+such as identical words used in different contexts. The current tests focus on the
+main workflows and do not yet fully cover provider failures, concurrent requests, or
+prompt injection. With more time, I would evaluate multiple temporal folds, measure
+constraint compliance and explanation faithfulness, and add semantic reranking before
+considering a separate retrieval microservice for larger corpora or higher traffic.
+
+## Future Work
+
+Separating the LLM from retrieval and ranking keeps the data signals testable and
+reproducible for the same tool input. However, changing the provider or model can
+still change the end-to-end result because the LLM decides which tool to call and how
+to transform a request into a query, genres, years, and a reference movie. Evaluation
+must therefore cover tool routing, constraint extraction, and grounding for each
+model, rather than comparing only response fluency.
+
+The next optimization priorities are:
+
+1. Introduce a multi-agent architecture only when the workflow requires it. An
+   orchestrator can delegate complex requests to specialized components: a local
+   search and recommendation agent, an evidence and result-quality evaluator, and a
+   web-search agent when the local catalog does not contain enough information. Web
+   results must include citations and remain clearly separated from ratings in the
+   local dataset. Simple requests should continue through the current single-agent
+   path to avoid unnecessary latency and cost. Retry should not be an unconstrained
+   autonomous agent; it should be implemented as a recovery node or orchestration
+   policy with attempt limits, timeouts, and explicit stop conditions.
+2. Add semantic retrieval or a cross-encoder reranker over the TF-IDF candidate pool
+   to better understand themes, moods, and semantic relationships while preserving
+   hard filters and traceable evidence.
+3. Build a dedicated search-evaluation suite for configuring and comparing retrieval
+   approaches. It should contain fixed queries for keyword search, semantic search,
+   genre and year filters, negative constraints, and no-result cases. Parameters such
+   as metadata boost, candidate-pool size, semantic threshold, and combination weights
+   should be moved into configuration. Every change should rerun the suite so a better
+   configuration can be selected before release.
+4. Replace `InMemorySaver` with a checkpoint store that supports TTL and context
+   limits. Bind each `thread_id` to the authenticated user, and add rate limiting,
+   timeouts, tracing, and readiness checks before deploying multiple workers.

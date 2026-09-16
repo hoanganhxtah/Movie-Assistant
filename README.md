@@ -1,5 +1,8 @@
 # TrustedAI - AI Engineer Test
 
+For installation, configuration, and run instructions, see
+[SETUP_AND_RUN.md](SETUP_AND_RUN.md).
+
 ## The Problem
 
 You have a dataset of movies with plot summaries, user ratings, and tags. Your task:
