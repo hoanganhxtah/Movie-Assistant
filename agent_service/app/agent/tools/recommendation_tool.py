@@ -54,18 +54,33 @@ def build_recommendation_tool(
         # Only resolve a title when the LLM explicitly supplies a reference movie.
         if reference_title:
             movie = repository.resolve_title(reference_title)
-            if movie:
-                logger.info(
-                    "Reference movie resolved | requested=%r | movie_id=%s | title=%r",
+            if movie is None:
+                logger.warning(
+                    "Reference movie could not be resolved | requested=%r",
                     reference_title,
-                    movie.movie_id,
-                    movie.title,
                 )
-                excluded = {genre.lower() for genre in filters.exclude_genres}
-                genres = [
-                    genre for genre in movie.genres if genre.lower() not in excluded
-                ]
-                query = " ".join([query, movie.title, *genres]).strip()
+                result = AgentToolResult(
+                    intent="recommend",
+                    evidence=(
+                        {
+                            "error": "Reference movie title was not found in the catalog",
+                            "reference_title": reference_title,
+                        },
+                    ),
+                )
+                return result.model_dump_json(), result.model_dump(mode="json")
+
+            logger.info(
+                "Reference movie resolved | requested=%r | movie_id=%s | title=%r",
+                reference_title,
+                movie.movie_id,
+                movie.title,
+            )
+            excluded = {genre.lower() for genre in filters.exclude_genres}
+            genres = [
+                genre for genre in movie.genres if genre.lower() not in excluded
+            ]
+            query = " ".join([query, movie.title, *genres]).strip()
 
         # user_id is injected by the agent runtime and is hidden from the LLM schema.
         limit = max(1, min(limit, 10))
