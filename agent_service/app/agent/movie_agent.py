@@ -7,7 +7,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from agent_service.app.agent.prompts.movie_agent import MOVIE_AGENT_PROMPT
+from agent_service.app.agent.prompts.movie_agent_prompt import (
+    MOVIE_AGENT_SYSTEM_PROMPT,
+)
 from agent_service.app.agent.tools import ToolRegistry
 from agent_service.app.schemas import (
     AgentContext,
@@ -29,7 +31,7 @@ class MovieAgent:
         self.graph = create_agent(
             model=model,
             tools=tools.build_tools(),
-            system_prompt=MOVIE_AGENT_PROMPT,
+            system_prompt=MOVIE_AGENT_SYSTEM_PROMPT,
             context_schema=AgentContext,
             checkpointer=InMemorySaver(),
         )
