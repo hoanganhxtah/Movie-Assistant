@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from difflib import get_close_matches
 from pathlib import Path
@@ -14,6 +15,8 @@ from agent_service.app.schemas import Movie, UserProfile
 REQUIRED_MOVIE_COLUMNS = {"movieId", "title", "year", "genres", "plot"}
 REQUIRED_RATING_COLUMNS = {"userId", "movieId", "rating", "timestamp"}
 REQUIRED_TAG_COLUMNS = {"userId", "movieId", "tag", "timestamp"}
+
+logger = logging.getLogger(__name__)
 
 
 class DatasetError(ValueError):
@@ -41,6 +44,13 @@ class MovieRepository:
         self.tags = tags.copy()
         self._validate()
         self._prepare()
+        logger.info(
+            "Movie repository ready | movies=%s | users=%s | ratings=%s | tags=%s",
+            len(self.movies),
+            len(self.user_ids),
+            len(self.ratings),
+            len(self.tags),
+        )
 
     def _validate(self) -> None:
         # Fail at startup instead of returning unreliable recommendations later.

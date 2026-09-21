@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from agent_service.app.config import recommendation_settings
 from agent_service.app.repository import MovieRepository
 from agent_service.app.schemas import PeerOpinion
+
+logger = logging.getLogger(__name__)
 
 
 class UserUserCollaborativeFilter:
@@ -34,6 +38,13 @@ class UserUserCollaborativeFilter:
         self._user_row = {
             int(user_id): row for row, user_id in enumerate(self.user_ids)
         }
+        logger.info(
+            "Collaborative rating index ready | users=%s | movies=%s | "
+            "observed_ratings=%s",
+            len(self.user_ids),
+            len(self.movie_ids),
+            int(np.count_nonzero(self.observed)),
+        )
 
     def similar_users(self, user_id: int) -> list[tuple[int, float]]:
         row = self._user_row.get(int(user_id))

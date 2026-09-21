@@ -20,6 +20,38 @@ LLM tự động phân tích ngữ cảnh để quyết định gọi tool phù 
 (chào hỏi/small talk) mà không tạo kết quả rác. Lịch sử hội thoại được duy trì bằng
 `InMemorySaver` checkpointer theo `thread_id` để phục vụ các câu hỏi follow-up.
 
+### Luồng intent và vòng lặp gọi tool
+
+Agent có thể gọi nhiều tool trong một lượt. Sau khi nhận kết quả tool, LLM
+quyết định gọi tiếp tool khác hoặc trả lời. Năm nhánh tool dưới đây tương ứng
+với năm intent nghiệp vụ; `conversation` áp dụng khi không gọi tool.
+
+```mermaid
+flowchart TD
+    Request["POST /chat: message, user_id, thread_id"] --> Engine["AgentEngine: kiểm tra thread thuộc user"]
+    Engine --> Model["MovieAgent / LLM: prompt + lịch sử hội thoại"]
+    Model -->|"Cần dữ liệu: gọi một hoặc nhiều tool"| Route{"Chọn tool"}
+    Route -->|"Tìm phim theo tiêu chí"| Search["search_movies<br/>intent: search"]
+    Route -->|"Gợi ý theo sở thích"| Recommend["recommend_movies<br/>intent: recommend"]
+    Route -->|"Hỏi gu hoặc lịch sử đánh giá"| Profile["get_user_profile<br/>intent: profile"]
+    Route -->|"Hỏi người cùng gu nghĩ gì về một phim"| Peer["get_peer_opinion<br/>intent: peer_opinion"]
+    Route -->|"Hỏi thể loại ít khám phá"| Blind["find_blind_spots<br/>intent: blind_spot"]
+    Search --> Results["Kết quả tool: content + artifact có cấu trúc"]
+    Recommend --> Results
+    Profile --> Results
+    Peer --> Results
+    Blind --> Results
+    Results -->|"Suy luận tiếp; gọi tool khác nếu cần"| Model
+    Model -->|"Trả lời cuối cùng, có hoặc không gọi tool"| Extract["MovieAgent: lấy câu trả lời và artifact tool cuối"]
+    Extract --> Response["ChatResponse: answer, intent, recommendations, evidence"]
+```
+
+Với lượt không gọi tool (ví dụ chào hỏi), `MovieAgent` gán intent
+`conversation`. Với lượt gọi nhiều tool, LLM có thể dùng mọi kết quả tool để
+viết `answer`, nhưng các trường có cấu trúc `intent`, `recommendations` và
+`evidence` trong `ChatResponse` chỉ lấy từ **artifact của tool cuối cùng trong
+lượt đó**, chưa gộp tất cả artifact.
+
 Pipeline recommendation kết hợp:
 
 - TF-IDF word unigram/bigram trên title, genre, tag và plot, có metadata boost.
