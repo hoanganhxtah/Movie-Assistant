@@ -23,6 +23,38 @@ selects an appropriate tool, or answers greetings and small talk directly withou
 producing irrelevant recommendation results. Conversation history is maintained by
 an `InMemorySaver` checkpointer keyed by `thread_id` to support follow-up questions.
 
+### Intent and Tool-Calling Flow
+
+The agent can call more than one tool in a turn. After each tool result, the LLM
+decides whether to call another tool or produce the final answer. The five
+tool-backed intents are shown on the branches below; `conversation` is used when
+no tool is called.
+
+```mermaid
+flowchart TD
+    Request["POST /chat: message, user_id, thread_id"] --> Engine["AgentEngine: validate thread ownership"]
+    Engine --> Model["MovieAgent / LLM: prompt + conversation history"]
+    Model -->|"Need data: call one or more tools"| Route{"Choose tool"}
+    Route -->|"Find movies by criteria"| Search["search_movies<br/>intent: search"]
+    Route -->|"Recommend for the user's taste"| Recommend["recommend_movies<br/>intent: recommend"]
+    Route -->|"Ask about taste or rating history"| Profile["get_user_profile<br/>intent: profile"]
+    Route -->|"Ask what similar users think of a movie"| Peer["get_peer_opinion<br/>intent: peer_opinion"]
+    Route -->|"Ask about underexplored genres"| Blind["find_blind_spots<br/>intent: blind_spot"]
+    Search --> Results["Tool result: content + structured artifact"]
+    Recommend --> Results
+    Profile --> Results
+    Peer --> Results
+    Blind --> Results
+    Results -->|"Reason again; call another tool if needed"| Model
+    Model -->|"Final answer, with or without tool calls"| Extract["MovieAgent: read final answer and last tool artifact"]
+    Extract --> Response["ChatResponse: answer, intent, recommendations, evidence"]
+```
+
+For a no-tool turn (such as a greeting), `MovieAgent` assigns `conversation`.
+For a multi-tool turn, the LLM can use all tool messages to write the answer, but
+the structured `intent`, `recommendations`, and `evidence` in `ChatResponse` come
+from the **last tool artifact in that turn**, not an aggregation of all artifacts.
+
 The recommendation pipeline combines:
 
 - TF-IDF word unigrams and bigrams over titles, genres, tags, and plots, with a

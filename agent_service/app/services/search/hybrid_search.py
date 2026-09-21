@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Mapping, Sequence
 
@@ -16,6 +17,7 @@ from agent_service.app.schemas import SearchFilter, SearchHit
 
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+logger = logging.getLogger(__name__)
 
 
 def tokenize(text: str) -> list[str]:
@@ -48,6 +50,11 @@ class TfidfMovieRetriever:
             sublinear_tf=True,
         )
         self.matrix = self.vectorizer.fit_transform(self.documents)
+        logger.info(
+            "TF-IDF movie index ready | movies=%s | features=%s",
+            len(self.movie_ids),
+            self.matrix.shape[1],
+        )
 
     def query_scores(self, query: str) -> np.ndarray:
         query = str(query).strip()

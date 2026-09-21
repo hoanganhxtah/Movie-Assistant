@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -17,6 +19,8 @@ from agent_service.app.schemas import (
 from agent_service.app.services.search import TfidfMovieRetriever
 
 from .collaborative_filter import UserUserCollaborativeFilter
+
+logger = logging.getLogger(__name__)
 
 
 class RecommendationService:
