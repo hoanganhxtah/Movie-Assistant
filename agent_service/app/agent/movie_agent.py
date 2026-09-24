@@ -2,10 +2,10 @@
 
 import logging
 
-from langchain.agents import create_agent
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.prebuilt import create_react_agent
 
 from agent_service.app.agent.prompts.movie_agent_prompt import (
     MOVIE_AGENT_SYSTEM_PROMPT,
@@ -27,11 +27,11 @@ class MovieAgent:
 
     def __init__(self, model: BaseChatModel, tools: ToolRegistry):
         self.tools = tools
-        # create_agent lets the LLM choose a tool or answer casual chat directly.
-        self.graph = create_agent(
+        # create_react_agent lets the LLM choose a tool or answer casual chat directly.
+        self.graph = create_react_agent(
             model=model,
             tools=tools.build_tools(),
-            system_prompt=MOVIE_AGENT_SYSTEM_PROMPT,
+            prompt=MOVIE_AGENT_SYSTEM_PROMPT,
             context_schema=AgentContext,
             checkpointer=InMemorySaver(),
         )

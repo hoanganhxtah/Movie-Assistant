@@ -182,6 +182,15 @@ class RecommendationService:
         top_k = top_k or recommendation_settings.DEFAULT_TOP_K
         history = self.repository.user_ratings(user_id)
         eligible = self._eligible(user_id, filters)
+        logger.info(
+            "Recommendation context prepared | user_id=%s | history=%s | "
+            "eligible=%s | top_k=%s | query_present=%s",
+            user_id,
+            len(history),
+            int(np.count_nonzero(eligible)),
+            top_k,
+            bool(query.strip()),
+        )
 
         # Calculate the four independent ranking signals.
         user_mean = float(history["rating"].mean())
@@ -203,6 +212,14 @@ class RecommendationService:
             "quality": np.clip((quality_raw - 0.5) / 4.5, 0.0, 1.0),
             "collaborative_raw": collaborative_raw,
         }
+        logger.info(
+            "Recommendation signals computed | user_id=%s | query_nonzero=%s | "
+            "profile_nonzero=%s | collaborative_finite=%s",
+            user_id,
+            int(np.count_nonzero(scores["query"])),
+            int(np.count_nonzero(scores["profile"])),
+            int(np.count_nonzero(np.isfinite(collaborative_raw))),
+        )
 
         # A specific query emphasizes relevance; a general request emphasizes taste.
         if query.strip():
@@ -224,6 +241,13 @@ class RecommendationService:
 
         total = sum(weights)
         weights = tuple(weight / total for weight in weights)
+        logger.info(
+            "Recommendation weights resolved | user_id=%s | cold_start=%s | "
+            "query=%.3f | profile=%.3f | collaborative=%.3f | quality=%.3f",
+            user_id,
+            len(history) < 20,
+            *weights,
+        )
         final_scores = (
             weights[0] * scores["query"]
             + weights[1] * scores["profile"]
@@ -234,7 +258,7 @@ class RecommendationService:
         selected = np.argsort(final_scores)[::-1][:top_k]
 
         # Keep response/evidence construction outside the ranking flow.
-        return self._build_recommendations(
+        recommendations = self._build_recommendations(
             user_id=user_id,
             selected=selected,
             final_scores=final_scores,
@@ -243,3 +267,12 @@ class RecommendationService:
             query=query,
             filters=filters,
         )
+        logger.info(
+            "Recommendation completed | user_id=%s | requested=%s | returned=%s | "
+            "movie_ids=%s",
+            user_id,
+            top_k,
+            len(recommendations),
+            [item.movie_id for item in recommendations],
+        )
+        return recommendations

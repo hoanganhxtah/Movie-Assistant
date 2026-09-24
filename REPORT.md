@@ -75,7 +75,7 @@ microservice or vector database is not yet necessary.
 | Decision | Alternative considered | Rationale |
 |---|---|---|
 | One LangChain tool-calling agent | Supervisor or multi-agent graph | One model is sufficient to select among five tools; the design is compact, has lower latency, and supports multiple providers |
-| Local TF-IDF retrieval in the backend | Reuse `rag_service` with Qdrant or Chroma | The corpus is small and static, so this avoids an additional service while still supporting effective keyword and plot search |
+| Local TF-IDF retrieval in the backend | Semantic search with text embeddings and a vector database (Qdrant or Chroma) | The corpus is small and static, so local TF-IDF avoids an embedding model and separate vector-database infrastructure while still supporting effective keyword and plot search |
 | Hybrid content, collaborative, and quality ranking | Content-only, collaborative-only, or popularity-only ranking | Each signal compensates for weaknesses in the others and produces understandable evidence |
 
 ## Evaluation
