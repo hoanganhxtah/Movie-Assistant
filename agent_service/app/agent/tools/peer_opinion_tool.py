@@ -3,7 +3,7 @@
 import logging
 import time
 
-from langchain.tools import ToolRuntime
+from langgraph.prebuilt import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
 from agent_service.app.repository import MovieRepository

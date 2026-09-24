@@ -70,7 +70,7 @@ in-memory đơn giản hơn và đủ nhanh; chưa cần một RAG microservice 
 | Quyết định                     | Phương án thay thế đã xem xét           | Tại sao tôi chọn phương án này                                                       |
 | ----------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | Một LangChain tool-calling agent | Supervisor/multi-agent graph                   | Một model đủ chọn năm tool; cấu trúc ngắn, ít latency và dễ mở rộng provider   |
-| TF-IDF local trong backend        | Tái sử dụng`rag_service` với Qdrant/Chroma | Corpus nhỏ, static; tránh thêm service và vận hành nhưng vẫn tìm tốt keyword/plot |
+| TF-IDF local trong backend        | Tìm kiếm ngữ nghĩa bằng text embedding và vector database (Qdrant/Chroma) | Corpus nhỏ và ít thay đổi; TF-IDF local không cần model embedding hay hạ tầng vector database riêng nhưng vẫn tìm tốt theo từ khóa và nội dung plot |
 | Hybrid content + CF + quality     | Chỉ content, chỉ CF hoặc popularity         | Mỗi tín hiệu bù điểm yếu của tín hiệu khác và cho evidence dễ hiểu            |
 
 ## Đánh Giá
