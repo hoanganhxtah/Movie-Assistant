@@ -1,9 +1,7 @@
 """HTTP endpoint for agent conversations."""
 
 import logging
-
 from fastapi import APIRouter, HTTPException, Request
-
 from agent_service.app.schemas import ChatRequest, ChatResponse, ErrorResponse
 
 
